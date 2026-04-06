@@ -95,12 +95,22 @@ st.markdown("""
         bottom: 20px;
         right: 20px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 10px 18px;
+        padding: 8px 18px 8px 12px;
         border-radius: 40px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         z-index: 1000;
         transition: all 0.3s ease;
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .sticky-profile img {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid white;
+        object-fit: cover;
     }
     .sticky-profile a {
         color: white;
@@ -113,7 +123,6 @@ st.markdown("""
     }
     .sticky-profile a:hover {
         text-decoration: underline;
-        transform: scale(1.02);
     }
     .sticky-profile:hover {
         transform: translateY(-3px);
@@ -123,7 +132,11 @@ st.markdown("""
         .sticky-profile {
             bottom: 10px;
             right: 10px;
-            padding: 8px 14px;
+            padding: 6px 14px 6px 8px;
+        }
+        .sticky-profile img {
+            width: 28px;
+            height: 28px;
         }
         .sticky-profile a {
             font-size: 12px;
@@ -584,9 +597,12 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
     
-    # ========== STICKY PROFILE LINK (bottom right corner) ==========
-    st.markdown("""
+    # ========== STICKY PROFILE LINK with IMAGE ==========
+    # Generate a nice avatar using ui-avatars.com (based on the username)
+    profile_img_url = "https://ui-avatars.com/api/?name=01benedict&background=667eea&color=fff&size=64&rounded=true&bold=true"
+    st.markdown(f"""
     <div class="sticky-profile">
+        <img src="{profile_img_url}" alt="Profile Avatar">
         <a href="https://share.streamlit.io/user/01benedict" target="_blank">
             👤 Profile
         </a>
