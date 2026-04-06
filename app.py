@@ -19,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling (fixed text colors for light backgrounds)
 st.markdown("""
     <style>
     .main-header {
@@ -59,12 +59,27 @@ st.markdown("""
         padding: 1rem;
         border-radius: 10px;
         margin: 1rem 0;
+        color: #1e1e1e;  /* Dark text for light background */
+    }
+    .info-box h4, .info-box p, .info-box strong {
+        color: #1e1e1e;
     }
     .feature-importance {
         background-color: white;
         padding: 1rem;
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #1e1e1e;
+    }
+    .example-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        color: #1e1e1e;
+    }
+    .example-card h4, .example-card p, .example-card strong {
+        color: #1e1e1e;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -543,7 +558,12 @@ def main():
             spine.set_visible(False)
         
         st.pyplot(fig)
-        plt.close()    
+        plt.close()
+        
+        # Disclaimer
+        st.markdown("---")
+        st.caption("⚠️ **Disclaimer:** This is an AI-generated estimate based on historical data. Actual market prices may vary based on location, condition, market conditions, and other factors not captured in this model.")
+    
     else:
         # Show example predictions when no prediction is made yet
         st.markdown("---")
@@ -560,7 +580,7 @@ def main():
         for idx, (col, example) in enumerate(zip([col1, col2, col3], examples)):
             with col:
                 st.markdown(f"""
-                <div style="background-color: #f0f2f6; padding: 1rem; border-radius: 10px; text-align: center;">
+                <div class="example-card">
                     <h4>{example['name']}</h4>
                     <p>{example['desc']}</p>
                     <p><strong>{example['price']}</strong></p>
