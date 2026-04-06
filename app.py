@@ -89,6 +89,46 @@ st.markdown("""
         margin: 1rem 0;
         color: #c62828;
     }
+    /* Sticky profile link - bottom right corner */
+    .sticky-profile {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 10px 18px;
+        border-radius: 40px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .sticky-profile a {
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sticky-profile a:hover {
+        text-decoration: underline;
+        transform: scale(1.02);
+    }
+    .sticky-profile:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+    @media (max-width: 768px) {
+        .sticky-profile {
+            bottom: 10px;
+            right: 10px;
+            padding: 8px 14px;
+        }
+        .sticky-profile a {
+            font-size: 12px;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -222,50 +262,40 @@ def validate_inputs(manufacturer, model_name, production_year, mileage, engine_v
     """Validate all user inputs before prediction"""
     errors = []
     
-    # Manufacturer
     if not manufacturer or manufacturer.strip() == "":
         errors.append("Manufacturer is required.")
     
-    # Model
     if not model_name or model_name.strip() == "" or model_name == "Custom Model":
         errors.append("Please enter a valid model name.")
     
-    # Production year
     current_year = datetime.now().year
     if production_year < 1990 or production_year > current_year:
         errors.append(f"Production year must be between 1990 and {current_year}.")
     
-    # Mileage
     if mileage < 0:
         errors.append("Mileage cannot be negative.")
     elif mileage > 500000:
         errors.append("Mileage seems too high (max 500,000 km).")
     
-    # Engine volume
     if engine_volume <= 0:
         errors.append("Engine volume must be greater than 0.")
     elif engine_volume > 8.0:
         errors.append("Engine volume seems too high (max 8.0L).")
     
-    # Cylinders
     if cylinders not in [3,4,5,6,8,10,12]:
         errors.append("Invalid number of cylinders.")
     
-    # Levy
     if levy < 0:
         errors.append("Levy cannot be negative.")
     elif levy > 10000:
         errors.append("Levy seems too high (max $10,000).")
     
-    # Airbags
     if airbags not in [0,2,4,6,8,10,12]:
         errors.append("Invalid number of airbags.")
     
-    # Doors
     if doors not in [2,3,4,5]:
         errors.append("Invalid number of doors.")
     
-    # Other fields - just ensure they are not None (they won't be due to selectbox)
     if not leather_interior or leather_interior not in ['Yes', 'No']:
         errors.append("Leather interior selection is invalid.")
     
@@ -553,6 +583,15 @@ def main():
                     <p><strong>{example['price']}</strong></p>
                 </div>
                 """, unsafe_allow_html=True)
+    
+    # ========== STICKY PROFILE LINK (bottom right corner) ==========
+    st.markdown("""
+    <div class="sticky-profile">
+        <a href="https://share.streamlit.io/user/01benedict" target="_blank">
+            👤 Profile
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
