@@ -543,12 +543,7 @@ def main():
             spine.set_visible(False)
         
         st.pyplot(fig)
-        plt.close()
-        
-        # Disclaimer
-        st.markdown("---")
-        st.caption("⚠️ **Disclaimer:** This is an AI-generated estimate based on historical data. Actual market prices may vary based on location, condition, market conditions, and other factors not captured in this model.")
-    
+        plt.close()    
     else:
         # Show example predictions when no prediction is made yet
         st.markdown("---")
