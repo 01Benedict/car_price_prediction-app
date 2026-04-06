@@ -59,7 +59,7 @@ st.markdown("""
         padding: 1rem;
         border-radius: 10px;
         margin: 1rem 0;
-        color: #1e1e1e;  /* Dark text for light background */
+        color: #1e1e1e;
     }
     .info-box h4, .info-box p, .info-box strong {
         color: #1e1e1e;
@@ -81,6 +81,14 @@ st.markdown("""
     .example-card h4, .example-card p, .example-card strong {
         color: #1e1e1e;
     }
+    .error-box {
+        background-color: #ffebee;
+        border-left: 4px solid #f44336;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+        color: #c62828;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -101,7 +109,6 @@ def load_model():
 def get_n_estimators_from_model(model):
     """Extract n_estimators from pipeline or direct model"""
     try:
-        # If it's a pipeline, try to get the regressor/classifier
         if hasattr(model, 'named_steps'):
             if 'regressor' in model.named_steps:
                 base_model = model.named_steps['regressor']
@@ -112,7 +119,6 @@ def get_n_estimators_from_model(model):
         else:
             base_model = model
         
-        # Check if the model has n_estimators attribute
         if hasattr(base_model, 'n_estimators'):
             return base_model.n_estimators
         else:
@@ -128,25 +134,15 @@ def apply_feature_engineering(df, current_year):
     """Apply the same feature engineering as used during training"""
     df = df.copy()
     
-    # Car age
     df['car_age'] = current_year - df['production_year']
-    
-    # Age groups
     df['age_group'] = pd.cut(df['car_age'],
                               bins=[0, 5, 10, 15, 100],
                               labels=['New', 'Recent', 'Mid-age', 'Old'])
-    
-    # Mileage groups
     df['mileage_group'] = pd.cut(df['mileage'],
                                   bins=[0, 50000, 100000, 150000, 1000000],
                                   labels=['Low', 'Medium', 'High', 'Very High'])
-    
-    # Engine per cylinder
     df['engine_per_cylinder'] = df['engine_volume'] / df['cylinders']
-    
-    # Production year squared
     df['production_year_squared'] = df['production_year'] ** 2
-    
     return df
 
 
@@ -168,14 +164,12 @@ feature_cols_enhanced = numeric_cols_enhanced + categorical_cols_enhanced
 # INPUT COLLECTION FUNCTIONS
 # ============================================================================
 def get_manufacturer_options():
-    """Common car manufacturers"""
     return ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'BMW', 'Mercedes-Benz', 
             'Audi', 'Lexus', 'Hyundai', 'Kia', 'Nissan', 'Volkswagen', 
             'Mazda', 'Subaru', 'Volvo', 'Porsche', 'Jaguar', 'Land Rover',
             'Tesla', 'Ferrari', 'Lamborghini', 'Other']
 
 def get_model_options(manufacturer):
-    """Get model suggestions based on manufacturer"""
     models = {
         'Toyota': ['Camry', 'Corolla', 'RAV4', 'Highlander', 'Prius', 'Tacoma', 'Sienna'],
         'Honda': ['Civic', 'Accord', 'CR-V', 'Pilot', 'Odyssey', 'Fit'],
@@ -215,102 +209,85 @@ def get_wheel_options():
     return ['Left wheel', 'Right wheel']
 
 def get_color_options():
-    colors = ['Black', 'White', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 
-              'Brown', 'Beige', 'Orange', 'Yellow', 'Purple', 'Gold', 'Other']
-    return colors
+    return ['Black', 'White', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 
+            'Brown', 'Beige', 'Orange', 'Yellow', 'Purple', 'Gold', 'Other']
 
 
 # ============================================================================
-# CREATE INPUT FORM
+# VALIDATION FUNCTION
 # ============================================================================
-def create_input_form():
-    """Create the input form for car details"""
+def validate_inputs(manufacturer, model_name, production_year, mileage, engine_volume, 
+                    cylinders, levy, airbags, doors, leather_interior, gear_box_type,
+                    drive_wheels, wheel, color, fuel_type, category):
+    """Validate all user inputs before prediction"""
+    errors = []
     
-    col1, col2 = st.columns(2)
+    # Manufacturer
+    if not manufacturer or manufacturer.strip() == "":
+        errors.append("Manufacturer is required.")
     
-    with col1:
-        st.subheader("📋 Basic Information")
-        
-        manufacturer = st.selectbox("Manufacturer", get_manufacturer_options(), key="manufacturer")
-        
-        # Dynamic model selection based on manufacturer
-        models = get_model_options(manufacturer)
-        model_name = st.selectbox("Model", models, key="model")
-        
-        if manufacturer == 'Other' or model_name == 'Custom Model' or model_name == 'Other Model':
-            model_name = st.text_input("Enter Model Name", value=model_name if model_name != 'Other Model' else "", key="custom_model")
-        
-        production_year = st.number_input("Production Year", 
-                                          min_value=1990, 
-                                          max_value=datetime.now().year,
-                                          value=2018,
-                                          step=1,
-                                          key="production_year")
-        
-        category = st.selectbox("Vehicle Category", get_category_options(), key="category")
-        
-        fuel_type = st.selectbox("Fuel Type", get_fuel_options(), key="fuel_type")
-        
-        engine_volume = st.number_input("Engine Volume (Liters)", 
-                                         min_value=0.5, 
-                                         max_value=8.0, 
-                                         value=2.0, 
-                                         step=0.1,
-                                         format="%.1f",
-                                         key="engine_volume")
-        
-        cylinders = st.selectbox("Number of Cylinders", [3, 4, 5, 6, 8, 10, 12], index=1, key="cylinders")
-        
-        mileage = st.number_input("Mileage (km)", 
-                                   min_value=0, 
-                                   max_value=500000, 
-                                   value=50000, 
-                                   step=5000,
-                                   key="mileage")
+    # Model
+    if not model_name or model_name.strip() == "" or model_name == "Custom Model":
+        errors.append("Please enter a valid model name.")
     
-    with col2:
-        st.subheader("🔧 Additional Features")
-        
-        levy = st.number_input("Levy / Tax Amount", 
-                               min_value=0, 
-                               max_value=10000, 
-                               value=500, 
-                               step=50,
-                               key="levy",
-                               help="Annual tax or insurance levy on the vehicle")
-        
-        airbags = st.select_slider("Number of Airbags", options=[0, 2, 4, 6, 8, 10, 12], value=4, key="airbags")
-        
-        doors = st.selectbox("Number of Doors", [2, 3, 4, 5], index=2, key="doors")
-        
-        leather_interior = st.selectbox("Leather Interior", ['Yes', 'No'], key="leather_interior")
-        
-        gear_box_type = st.selectbox("Transmission Type", get_gear_box_options(), key="gear_box_type")
-        
-        drive_wheels = st.selectbox("Drive Wheels", get_drive_wheels_options(), key="drive_wheels")
-        
-        wheel = st.selectbox("Steering Wheel Position", get_wheel_options(), key="wheel")
-        
-        color = st.selectbox("Exterior Color", get_color_options(), key="color")
+    # Production year
+    current_year = datetime.now().year
+    if production_year < 1990 or production_year > current_year:
+        errors.append(f"Production year must be between 1990 and {current_year}.")
     
-    return {
-        'manufacturer': manufacturer,
-        'model': model_name,
-        'production_year': production_year,
-        'category': category,
-        'fuel_type': fuel_type,
-        'engine_volume': engine_volume,
-        'cylinders': cylinders,
-        'mileage': mileage,
-        'levy': levy,
-        'airbags': airbags,
-        'doors': doors,
-        'leather_interior': leather_interior,
-        'gear_box_type': gear_box_type,
-        'drive_wheels': drive_wheels,
-        'wheel': wheel,
-        'color': color
-    }
+    # Mileage
+    if mileage < 0:
+        errors.append("Mileage cannot be negative.")
+    elif mileage > 500000:
+        errors.append("Mileage seems too high (max 500,000 km).")
+    
+    # Engine volume
+    if engine_volume <= 0:
+        errors.append("Engine volume must be greater than 0.")
+    elif engine_volume > 8.0:
+        errors.append("Engine volume seems too high (max 8.0L).")
+    
+    # Cylinders
+    if cylinders not in [3,4,5,6,8,10,12]:
+        errors.append("Invalid number of cylinders.")
+    
+    # Levy
+    if levy < 0:
+        errors.append("Levy cannot be negative.")
+    elif levy > 10000:
+        errors.append("Levy seems too high (max $10,000).")
+    
+    # Airbags
+    if airbags not in [0,2,4,6,8,10,12]:
+        errors.append("Invalid number of airbags.")
+    
+    # Doors
+    if doors not in [2,3,4,5]:
+        errors.append("Invalid number of doors.")
+    
+    # Other fields - just ensure they are not None (they won't be due to selectbox)
+    if not leather_interior or leather_interior not in ['Yes', 'No']:
+        errors.append("Leather interior selection is invalid.")
+    
+    if not gear_box_type:
+        errors.append("Transmission type is required.")
+    
+    if not drive_wheels:
+        errors.append("Drive wheels selection is required.")
+    
+    if not wheel:
+        errors.append("Steering wheel position is required.")
+    
+    if not color:
+        errors.append("Color selection is required.")
+    
+    if not fuel_type:
+        errors.append("Fuel type is required.")
+    
+    if not category:
+        errors.append("Vehicle category is required.")
+    
+    return errors
 
 
 # ============================================================================
@@ -327,11 +304,9 @@ def main():
     
     # Load model
     model = load_model()
-    
     if model is None:
         st.stop()
     
-    # Get n_estimators value for display
     n_estimators_value = get_n_estimators_from_model(model)
     
     # Sidebar
@@ -384,7 +359,8 @@ def main():
             production_year = st.number_input("📅 Production Year", 
                                               min_value=1990, 
                                               max_value=datetime.now().year,
-                                              value=2018)
+                                              value=2018,
+                                              step=1)
             mileage = st.number_input("📊 Mileage (km)", 
                                       min_value=0, 
                                       value=50000, 
@@ -393,7 +369,7 @@ def main():
             models = get_model_options(manufacturer)
             model_name = st.selectbox("🚗 Model", models)
             if manufacturer == 'Other' or model_name == 'Custom Model':
-                model_name = st.text_input("Enter custom model name", value=model_name)
+                model_name = st.text_input("Enter custom model name", value="")
             category = st.selectbox("🏷️ Category", get_category_options())
         with col3:
             fuel_type = st.selectbox("⛽ Fuel Type", get_fuel_options())
@@ -430,139 +406,131 @@ def main():
         predict_button = st.button("🔮 PREDICT CAR PRICE", use_container_width=True, type="primary")
     
     if predict_button:
-        # Prepare input data
-        current_year = datetime.now().year
+        # Validate inputs
+        errors = validate_inputs(manufacturer, model_name, production_year, mileage, engine_volume,
+                                 cylinders, levy, airbags, doors, leather_interior, gear_box_type,
+                                 drive_wheels, wheel, color, fuel_type, category)
         
-        input_data = pd.DataFrame({
-            'manufacturer': [manufacturer],
-            'model': [model_name],
-            'production_year': [production_year],
-            'category': [category],
-            'fuel_type': [fuel_type],
-            'engine_volume': [engine_volume],
-            'cylinders': [cylinders],
-            'mileage': [mileage],
-            'levy': [levy],
-            'airbags': [airbags],
-            'doors': [doors],
-            'leather_interior': [leather_interior],
-            'gear_box_type': [gear_box_type],
-            'drive_wheels': [drive_wheels],
-            'wheel': [wheel],
-            'color': [color]
-        })
-        
-        # Apply feature engineering
-        input_data = apply_feature_engineering(input_data, current_year)
-        input_data = input_data[feature_cols_enhanced]
-        
-        # Make prediction
-        with st.spinner("🤖 Analyzing car data and calculating price..."):
-            prediction = model.predict(input_data)[0]
-        
-        # Display results
-        st.markdown("---")
-        st.markdown("## 📊 Prediction Results")
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
+        if errors:
+            st.markdown('<div class="error-box">⚠️ **Please fix the following errors:**<br>' + 
+                       '<br>'.join(f"• {err}" for err in errors) + '</div>', unsafe_allow_html=True)
+        else:
+            # Prepare input data
+            current_year = datetime.now().year
+            
+            input_data = pd.DataFrame({
+                'manufacturer': [manufacturer],
+                'model': [model_name],
+                'production_year': [production_year],
+                'category': [category],
+                'fuel_type': [fuel_type],
+                'engine_volume': [engine_volume],
+                'cylinders': [cylinders],
+                'mileage': [mileage],
+                'levy': [levy],
+                'airbags': [airbags],
+                'doors': [doors],
+                'leather_interior': [leather_interior],
+                'gear_box_type': [gear_box_type],
+                'drive_wheels': [drive_wheels],
+                'wheel': [wheel],
+                'color': [color]
+            })
+            
+            # Apply feature engineering
+            input_data = apply_feature_engineering(input_data, current_year)
+            input_data = input_data[feature_cols_enhanced]
+            
+            # Make prediction
+            with st.spinner("🤖 Analyzing car data and calculating price..."):
+                prediction = model.predict(input_data)[0]
+            
+            # Display results
+            st.markdown("---")
+            st.markdown("## 📊 Prediction Results")
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.markdown(f"""
+                <div class="prediction-card">
+                    <p>Estimated Market Price</p>
+                    <h2>${prediction:,.2f}</h2>
+                    <p>Based on current market data and AI analysis</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Price range estimation
+            lower_bound = prediction * 0.85
+            upper_bound = prediction * 1.15
+            
+            if n_estimators_value != "multiple":
+                confidence_text = f"High (based on {n_estimators_value} decision trees)"
+            else:
+                confidence_text = "High (ensemble model)"
+            
             st.markdown(f"""
-            <div class="prediction-card">
-                <p>Estimated Market Price</p>
-                <h2>${prediction:,.2f}</h2>
-                <p>Based on current market data and AI analysis</p>
+            <div class="info-box">
+                <h4>💰 Price Range Estimate</h4>
+                <p><strong>Expected Range:</strong> ${lower_bound:,.2f} - ${upper_bound:,.2f}</p>
+                <p><strong>Confidence Level:</strong> {confidence_text}</p>
             </div>
             """, unsafe_allow_html=True)
-        
-        # Price range estimation
-        lower_bound = prediction * 0.85
-        upper_bound = prediction * 1.15
-        
-        # Format the confidence text properly
-        if n_estimators_value != "multiple":
-            confidence_text = f"High (based on {n_estimators_value} decision trees)"
-        else:
-            confidence_text = "High (ensemble model)"
-        
-        st.markdown(f"""
-        <div class="info-box">
-            <h4>💰 Price Range Estimate</h4>
-            <p><strong>Expected Range:</strong> ${lower_bound:,.2f} - ${upper_bound:,.2f}</p>
-            <p><strong>Confidence Level:</strong> {confidence_text}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Factors affecting price
-        st.markdown("### 📈 Factors Affecting This Price")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Age impact
+            
+            # Factors affecting price
+            st.markdown("### 📈 Factors Affecting This Price")
+            
+            col1, col2 = st.columns(2)
             car_age = current_year - production_year
             age_impact = "Excellent" if car_age <= 3 else "Good" if car_age <= 6 else "Fair" if car_age <= 10 else "Depreciated"
             age_emoji = "🟢" if car_age <= 3 else "🟡" if car_age <= 6 else "🟠" if car_age <= 10 else "🔴"
             
-            st.markdown(f"""
-            **Vehicle Age:** {car_age} years - {age_impact} {age_emoji}
+            with col1:
+                st.markdown(f"""
+                **Vehicle Age:** {car_age} years - {age_impact} {age_emoji}
+                
+                **Mileage Impact:** {mileage:,} km
+                - {'Low mileage (premium value)' if mileage < 50000 else 'Average mileage' if mileage < 100000 else 'High mileage (depreciation)'}
+                
+                **Engine:** {engine_volume}L, {cylinders} cylinders
+                """)
             
-            **Mileage Impact:** {mileage:,} km
-            - {'Low mileage (premium value)' if mileage < 50000 else 'Average mileage' if mileage < 100000 else 'High mileage (depreciation)'}
+            with col2:
+                st.markdown(f"""
+                **Features:** 
+                - {'✓ Leather interior (+value)' if leather_interior == 'Yes' else '✗ Cloth interior'}
+                - {airbags} airbags ({'Excellent safety' if airbags >= 6 else 'Standard safety'})
+                
+                **Transmission:** {gear_box_type}
+                
+                **Drive Type:** {drive_wheels}
+                """)
             
-            **Engine:** {engine_volume}L, {cylinders} cylinders
-            """)
-        
-        with col2:
-            st.markdown(f"""
-            **Features:** 
-            - {'✓ Leather interior (+value)' if leather_interior == 'Yes' else '✗ Cloth interior'}
-            - {airbags} airbags ({'Excellent safety' if airbags >= 6 else 'Standard safety'})
+            # Comparison gauge
+            st.markdown("### 📊 Price Analysis")
+            fig, ax = plt.subplots(figsize=(10, 2))
+            categories = ['Economy', 'Standard', 'Premium', 'Luxury', 'Exotic']
+            thresholds = [0, 15000, 30000, 50000, 80000, float('inf')]
+            price_category = "Luxury"
+            for i in range(len(thresholds)-1):
+                if thresholds[i] <= prediction < thresholds[i+1]:
+                    price_category = categories[i]
+                    break
+            colors_bar = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336']
+            category_idx = categories.index(price_category)
+            ax.barh([0], [1], color=colors_bar[category_idx], height=0.5)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(-0.5, 0.5)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_title(f"Price Category: {price_category} Vehicle", fontsize=12, fontweight='bold')
+            ax.axvline(x=0.5, color='black', linestyle='--', linewidth=2, alpha=0.7)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            st.pyplot(fig)
+            plt.close()
             
-            **Transmission:** {gear_box_type}
-            
-            **Drive Type:** {drive_wheels}
-            """)
-        
-        # Comparison gauge
-        st.markdown("### 📊 Price Analysis")
-        
-        # Create a simple gauge chart using matplotlib
-        fig, ax = plt.subplots(figsize=(10, 2))
-        
-        # Price categories (simplified for visualization)
-        categories = ['Economy', 'Standard', 'Premium', 'Luxury', 'Exotic']
-        thresholds = [0, 15000, 30000, 50000, 80000, float('inf')]
-        
-        # Find which category the price falls into
-        price_category = "Luxury"
-        for i in range(len(thresholds)-1):
-            if thresholds[i] <= prediction < thresholds[i+1]:
-                price_category = categories[i]
-                break
-        
-        # Create horizontal bar chart for price category
-        colors_bar = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336']
-        category_idx = categories.index(price_category)
-        
-        ax.barh([0], [1], color=colors_bar[category_idx], height=0.5)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(-0.5, 0.5)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(f"Price Category: {price_category} Vehicle", fontsize=12, fontweight='bold')
-        
-        # Add price marker
-        ax.axvline(x=0.5, color='black', linestyle='--', linewidth=2, alpha=0.7)
-        
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        
-        st.pyplot(fig)
-        plt.close()
-        
-        # Disclaimer
-        st.markdown("---")
-        st.caption("⚠️ **Disclaimer:** This is an AI-generated estimate based on historical data. Actual market prices may vary based on location, condition, market conditions, and other factors not captured in this model.")
+            st.markdown("---")
+            st.caption("⚠️ **Disclaimer:** This is an AI-generated estimate based on historical data. Actual market prices may vary based on location, condition, market conditions, and other factors not captured in this model.")
     
     else:
         # Show example predictions when no prediction is made yet
@@ -570,7 +538,6 @@ def main():
         st.markdown("### 💡 Example Predictions")
         
         col1, col2, col3 = st.columns(3)
-        
         examples = [
             {"name": "Economy Car", "desc": "Honda Civic 2018", "price": "$15,000 - $22,000"},
             {"name": "Family SUV", "desc": "Toyota RAV4 2020", "price": "$28,000 - $38,000"},
@@ -588,8 +555,5 @@ def main():
                 """, unsafe_allow_html=True)
 
 
-# ============================================================================
-# RUN THE APP
-# ============================================================================
 if __name__ == "__main__":
     main()
